@@ -20,7 +20,7 @@ public class ClientController {
     @Test
     public void login(){
         HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
-        
+        System.out.println("....");
         clientHttpRequestFactory.setConnectionRequestTimeout(5000);
         clientHttpRequestFactory.setReadTimeout(5000);
         restTemplate = new RestTemplate(clientHttpRequestFactory);
