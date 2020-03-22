@@ -1,0 +1,15 @@
+name
+slug
+description
+short_description
+sku
+regular_price
+sale_price
+stock_quantity
+weight
+tags
+categories
+images
+attributes
+default_attributes
+meta_data
