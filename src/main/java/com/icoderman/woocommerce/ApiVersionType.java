@@ -11,6 +11,7 @@ public enum ApiVersionType {
     private String value;
 
     ApiVersionType(String value) {
+        System.out.printf("");
         this.value = value;
     }
 

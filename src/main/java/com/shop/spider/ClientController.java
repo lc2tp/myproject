@@ -1,6 +1,10 @@
 package com.shop.spider;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.shop.spider.bean.Product;
+import com.shop.spider.bean.Warehouse;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
@@ -37,11 +41,12 @@ public class ClientController {
         ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
         String token = response.getHeaders().get("Set-Cookie").get(0);
         System.out.println(token);
-        getListProducts(token.split(";")[0]);
+        //getListProducts(token.split(";")[0]);
     }
     @Test
-    public void getListProducts(String token){
-        token ="token=6mwzeyNWCQFxdpKk6yukYPZjDCIGFwwbqmSM_OJYtqyB6BMjKWN8yaNrlfsiBS0lwbDkzNi2XzFpdPK0CO7n1ybZdTXPkXi8SQouX2LDtyzNNSg8_IRVMzAbaUyhzQi1GvYUZl_rHq6n8Es4q19oyyAGX2S9nw1SY5WDPyJXvzZb0ihEBxNrDklRgtbKdQayiaOEtxY1TQ2-pbA-8Br4u-IeSFyPQ5v34IbCgUT3K34xVbYhnsDkNpkaDXlCvSQWWi4LQ3DU7n3Dq9RuNgPU58EQLBCbg-oHah7pLKK_F1kbtYBpD1nSGo13RPiX-TOZnaKfwlNBLDmTDpf0l4iJEw==";
+    public void getListProducts(){
+        getRestTemplate();
+        String token ="token=6mwzeyNWCQFxdpKk6yukYPZjDCIGFwwbqmSM_OJYtqyB6BMjKWN8yaNrlfsiBS0lwbDkzNi2XzFpdPK0CO7n1ybZdTXPkXi8SQouX2LDtyzNNSg8_IRVMzAbaUyhzQi1GvYUZl_rHq6n8Es4q19oyyAGX2S9nw1SY5WDPyJXvzZb0ihEBxNrDklRgtbKdQayiaOEtxY1TQ2-pbA-8Br4u-IeSFyPQ5v34IbCgUT3K34xVbYhnsDkNpkaDXlCvSQWWi4LQ3DU7n3Dq9RuNgPU58EQLBCbg-oHah7pLKK_F1kbtYBpD1nSGo13RPiX-TOZnaKfwlNBLDmTDpf0l4iJEw==";
         HttpHeaders headers = new HttpHeaders();
         List<String> cookies =new ArrayList<String>();
         /* 登录获取Cookie 这里是直接给Cookie，可使用下方的login方法拿到Cookie给入*/
@@ -59,9 +64,36 @@ public class ClientController {
         HttpEntity<String> httpEntity = new HttpEntity(map,headers);
         ResponseEntity<String> response = restTemplate.exchange("https://ltj.nz/api/products?includeFee=true&page=1&pageSize=10&salesSort=true&showCurrencyId=2&status=1",HttpMethod.GET, httpEntity, String.class);
         System.out.println(response.getBody());        // {"code":200,"msg":null,"content":null}   返回此，且数据库增加数据即为成功
+        JSONObject object = JSONObject.parseObject(response.getBody().toString());
+
+        JSONObject data = object.getJSONObject("data");
+        JSONArray items = data.getJSONArray("items");
+        for(int i=0;i<items.size();i++){
+            JSONObject o = (JSONObject) items.get(i);
+            JSONObject product = o.getJSONObject("product");
+            Warehouse warehouse =  JSONObject.toJavaObject(product.getJSONObject("warehouse"), Warehouse.class);
+
+//            Product product  = JSONObject.toJavaObject(o.getJSONObject("product"), Product.class);
+        }
+
+
     }
 
     public void getProductBySku(String sku){
         System.out.println();
     }
+
+    public RestTemplate getRestTemplate(){
+        if(restTemplate ==null){
+            HttpComponentsClientHttpRequestFactory clientHttpRequestFactory = new HttpComponentsClientHttpRequestFactory();
+            System.out.println("....");
+            clientHttpRequestFactory.setConnectionRequestTimeout(5000);
+            clientHttpRequestFactory.setReadTimeout(5000);
+            restTemplate = new RestTemplate(clientHttpRequestFactory);
+            return restTemplate;
+        }
+        return restTemplate;
+    }
+
+
 }
