@@ -39,9 +39,9 @@ public class ClientController {
         System.out.println(token);
         getListProducts(token.split(";")[0]);
     }
-
+    @Test
     public void getListProducts(String token){
-        //token ="token=6mwzeyNWCQFxdpKk6yukYPZjDCIGFwwbqmSM_OJYtqyB6BMjKWN8yaNrlfsiBS0lwbDkzNi2XzFpdPK0CO7n1ybZdTXPkXi8SQouX2LDtyzNNSg8_IRVMzAbaUyhzQi1GvYUZl_rHq6n8Es4q19oyyAGX2S9nw1SY5WDPyJXvzZb0ihEBxNrDklRgtbKdQay0mO2JD5A7IhcNnjokO_5pcZ50PjV1I4cAOOKDalsfwKl4iALVLOTgRdJwQ2lchGW9Ci_b9RFqoGTQKhbUfFU-uKuG9irstiP77Vkz4v5BP7zMwF9zXNjUdSNEmKsfVtg7YkJZylscFCyHr8RtojqZw==";
+        token ="token=6mwzeyNWCQFxdpKk6yukYPZjDCIGFwwbqmSM_OJYtqyB6BMjKWN8yaNrlfsiBS0lwbDkzNi2XzFpdPK0CO7n1ybZdTXPkXi8SQouX2LDtyzNNSg8_IRVMzAbaUyhzQi1GvYUZl_rHq6n8Es4q19oyyAGX2S9nw1SY5WDPyJXvzZb0ihEBxNrDklRgtbKdQayiaOEtxY1TQ2-pbA-8Br4u-IeSFyPQ5v34IbCgUT3K34xVbYhnsDkNpkaDXlCvSQWWi4LQ3DU7n3Dq9RuNgPU58EQLBCbg-oHah7pLKK_F1kbtYBpD1nSGo13RPiX-TOZnaKfwlNBLDmTDpf0l4iJEw==";
         HttpHeaders headers = new HttpHeaders();
         List<String> cookies =new ArrayList<String>();
         /* 登录获取Cookie 这里是直接给Cookie，可使用下方的login方法拿到Cookie给入*/
@@ -57,7 +57,7 @@ public class ClientController {
 //        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<MultiValueMap<String, String>>(map,headers);
 
         HttpEntity<String> httpEntity = new HttpEntity(map,headers);
-        ResponseEntity<String> response = restTemplate.exchange("https://ltj.nz/api/products",HttpMethod.GET, httpEntity, String.class);
+        ResponseEntity<String> response = restTemplate.exchange("https://ltj.nz/api/products?includeFee=true&page=1&pageSize=10&salesSort=true&showCurrencyId=2&status=1",HttpMethod.GET, httpEntity, String.class);
         System.out.println(response.getBody());        // {"code":200,"msg":null,"content":null}   返回此，且数据库增加数据即为成功
     }
 
