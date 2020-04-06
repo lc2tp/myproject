@@ -18,9 +18,9 @@ import java.util.Map;
 
 public class WooCommerceClientTest {
 
-    private static final String CONSUMER_KEY = "ck_d35e7be7cc695d87f23490729dd80e173f88c8f5";
-    private static final String CONSUMER_SECRET = "cs_53a835760712ebf0c8bcf2a21197af4b2323a052";
-    private static final String WC_URL = "http://localhost/index.php";
+    private static final String CONSUMER_KEY = "ck_d09e417294602804f8f13ab154d598fa9945f9f7";
+    private static final String CONSUMER_SECRET = "ck_d09e417294602804f8f13ab154d598fa9945f9f7";
+    private static final String WC_URL = "http://112.126.95.64/index.php";
 
     private WooCommerce wooCommerce;
 
