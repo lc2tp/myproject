@@ -65,7 +65,6 @@ public class ClientController {
         ResponseEntity<String> response = restTemplate.exchange("https://ltj.nz/api/products?includeFee=true&page=1&pageSize=10&salesSort=true&showCurrencyId=2&status=1",HttpMethod.GET, httpEntity, String.class);
         System.out.println(response.getBody());        // {"code":200,"msg":null,"content":null}   返回此，且数据库增加数据即为成功
         JSONObject object = JSONObject.parseObject(response.getBody().toString());
-
         JSONObject data = object.getJSONObject("data");
         JSONArray items = data.getJSONArray("items");
         for(int i=0;i<items.size();i++){
