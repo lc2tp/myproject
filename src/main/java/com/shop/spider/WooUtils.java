@@ -1,6 +1,8 @@
 package com.shop.spider;
 
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.shop.spider.bean.Warehouse;
 import org.omg.CORBA.portable.InputStream;
 import org.springframework.util.StringUtils;
 
@@ -10,10 +12,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,8 +53,66 @@ public class WooUtils {
         b.append("</p>");
         map.put("description",b.toString());
     }
+
+    /**
+     * 简短描述
+     * @param product
+     * @param map
+     */
     public static void short_description(JSONObject product,Map map){
 
+
+        String weight  = product.getString("weight");
+        String stockQty =  product.getString("stockQty");
+        String validDate = DateUtil.timeStamp2Date(product.getString("validDate"),null);//有效期
+        Warehouse warehouse = JSONObject.toJavaObject(product.getJSONObject("warehouse"), Warehouse.class);
+        String onlineName = warehouse.getOnlineName();
+        onlineName = onlineName.equals("0")? "缺货":onlineName;
+
+        String short_description = "<ul>\\n";
+
+        short_description = short_description +"<li><span class=\\\"info-title\\\">重量</span>";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+weight+"g</span></li>\\n";
+
+        short_description = short_description +"<li><span class=\\\"info-title\\\">库存</span>";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+stockQty+"</span></li>\\n";
+
+        short_description = short_description +"<li><span class=\\\"info-title\\\">有效期</span>";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+validDate+"</span></li>\\n";
+
+        short_description = short_description +"<li><span class=\\\"info-title\\\">发货仓</span>";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+onlineName+"</span></li>\\n";
+
+        short_description =  short_description+"</ul>\\n";
+
+        map.put("short_description",short_description);
+
+    }
+
+    /**
+     * 产品标签，特价标签
+     * @param product
+     * @param map
+     */
+    public static void metaData(JSONObject product,Map map){
+        JSONArray jsonArray  = product.getJSONArray("meta_data");
+        for(int i=0;i<jsonArray.size();i++){
+            JSONObject  o = jsonArray.getJSONObject(i);
+            String name = o.getString("name");
+            if(name.equals("特价")){
+                Map  m  = new HashMap();
+                Map value = new HashMap();
+                String a[] = new String [1];
+                a[0]="5262";
+                value.put("id_badge",a[0]);
+                value.put("start_date","");
+                value.put("end_date","");
+                m.put("key","_yith_wcbm_product_meta");
+                m.put("value",value);
+                map.put("meta_data",new ArrayList<>().add(m));
+            }
+            return;
+        }
     }
     /**
      * 产品图片
@@ -80,7 +138,30 @@ public class WooUtils {
             }
         }
     }
+    /**
+     * 产品图片
+     */
+    public static void tags(JSONObject product,Map map){
 
+        Map imges= new HashMap();
+        String s = product.getString("carouselImgs");
+        if(!StringUtils.isEmpty(s)){
+            s = s.replaceAll("\\[","").replaceAll("\\]","");
+            if(!"".equals(s)){
+                String at [] = s.split(",");
+                List ls = new ArrayList<>();
+                for(int i=0;i<at.length;i++){
+                    String imageName = downloadPicture(at[i]);
+                    Map m = new HashMap();
+                    m.put("src",scr+imageName);
+                    m.put("position",i);
+                    m.put("name",imageName.substring(0,imageName.lastIndexOf(".")));
+                    ls.add(m);
+                }
+                imges.put("images",ls);
+            }
+        }
+    }
     /**
      * 下载图片
      * @param urlList
@@ -159,8 +240,11 @@ public class WooUtils {
 //        System.out.println(map.values());
 //        downloadPicture("https://oss.bestl2.com/nzh/product/WrG6YXRM8xKsX5KK48E3yTAGzsKWahJT");
 
-        String a ="[aaaa,bbb]";
-        System.out.println(a.split(","));
+       // System.out.println(timeStamp2Date("1643670000",null));
+
+        System.out.println("<span class=\\\"info-title\\\">重量</span>");
     }
+
+
 
 }
