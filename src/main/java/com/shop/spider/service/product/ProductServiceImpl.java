@@ -37,8 +37,7 @@ public class ProductServiceImpl implements IProductService {
                 for (int j = 0; j < items.size(); j++) {
                     JSONObject o = (JSONObject) items.get(j);
                     WooUtils.creatProduct(o);
-                    JSONObject product = o.getJSONObject("product");
-                    Warehouse warehouse = JSONObject.toJavaObject(product.getJSONObject("warehouse"), Warehouse.class);
+
 
                 }
             }
