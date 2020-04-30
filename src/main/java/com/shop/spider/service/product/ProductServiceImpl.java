@@ -2,8 +2,16 @@ package com.shop.spider.service.product;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.icoderman.woocommerce.ApiVersionType;
+import com.icoderman.woocommerce.EndpointBaseType;
+import com.icoderman.woocommerce.WooCommerce;
+import com.icoderman.woocommerce.WooCommerceAPI;
+import com.icoderman.woocommerce.oauth.OAuthConfig;
 import com.shop.spider.WooUtils;
 import com.shop.spider.bean.Warehouse;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.Assert;
 import org.junit.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
@@ -18,27 +26,43 @@ import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ProductServiceImpl implements IProductService {
+    private static final Logger logger = LogManager.getLogger();
     @Autowired
     private RestTemplate restTemplate;
+    private static final String CONSUMER_KEY = "ck_1e85d27ddf7bc6c4b65e7e9ec66ce4e8b24d3e1b";
+    private static final String CONSUMER_SECRET = "cs_3fa6d4b991df7717124cab92628b377d1184ede0";
+    private static final String WC_URL = "http://www.xiaohaid.com/wordpress/index.php";
 
+    WooCommerce  wooCommerce = new WooCommerceAPI(new OAuthConfig(WC_URL, CONSUMER_KEY, CONSUMER_SECRET), ApiVersionType.V2);
     @Override
     @Test
     public void runProducts() {
+
         float total = 4588;
         int pageSize = 50;
         int repeat = Math.round(total / 50);
-        for (int i = 1; i < repeat; i++) {
+        logger.debug("一共"+repeat+"页");
+        for (int i = 16; i < repeat; i++) {
+            logger.debug("查询当前第"+i+"页");
             JSONObject object = getListProducts(i, pageSize);
             if (object != null) {
                 JSONObject data = object.getJSONObject("data");
                 JSONArray items = data.getJSONArray("items");
                 for (int j = 0; j < items.size(); j++) {
+                    logger.debug("查询当前第"+i+"页的第"+j+"个商品");
                     JSONObject o = (JSONObject) items.get(j);
-                    WooUtils.creatProduct(o);
-
-
+                    JSONObject product = o.getJSONObject("product");
+                    Map productInfo = WooUtils.creatProduct(o,wooCommerce);
+                    Map newProduct = wooCommerce.create(EndpointBaseType.PRODUCTS.getValue(), productInfo);
+                    if(newProduct.size()==3){
+                        logger.debug(newProduct.get("message"));
+                        logger.debug("查询当前第"+i+"页的第"+j+"个商品失败");
+//                        return;
+                    }
+                    //Assert.assertNotNull(newProduct);
                 }
             }
         }
@@ -56,8 +80,8 @@ public class ProductServiceImpl implements IProductService {
         headers.put(HttpHeaders.COOKIE, cookies);        //将cookie存入头部
         MultiValueMap<String, String> map = new LinkedMultiValueMap<String, String>();      //请求体给予内容
         map.add("includeFee", "true");        //应用名称
-        map.add("page", "1");      //执行器名称
-        map.add("pageSize", "100");          //排序方式
+        map.add("page", page+"");      //执行器名称
+        map.add("pageSize", pageSize+"");          //排序方式
         map.add("salesSort", "true");        //注册方式 ：  0为
         map.add("showCurrencyId", "2");
         map.add("status", "1");

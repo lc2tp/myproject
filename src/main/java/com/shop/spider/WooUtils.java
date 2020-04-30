@@ -1,13 +1,22 @@
 package com.shop.spider;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.icoderman.woocommerce.EndpointBaseType;
+import com.icoderman.woocommerce.WooCommerce;
 import com.shop.spider.bean.Warehouse;
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.junit.Assert;
 import org.omg.CORBA.portable.InputStream;
 import org.springframework.util.StringUtils;
 
 import javax.imageio.ImageIO;
 import java.io.*;
+import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -18,20 +27,41 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WooUtils {
-    static String scr = "http://112.126.95.64/wordpress/wp-content/uploads/2020/04";
-    static String url = "http://112.126.95.64/wordpress/wp-content/uploads/2020/04";
+    static String scr = "http://www.xiaohaid.com/wordpress/wp-content/uploads/2020/04";
+    static String url = "http://www.xiaohaid.com/wordpress/wp-content/uploads/2020/04";
+    static FTPClient ftpClient;
+    static Map catMap = new HashMap();
+    static Map tagMap = new HashMap();
+    static WooCommerce wooCommerce1;
+    private static final Logger logger = LogManager.getLogger();
+    public static Map creatProduct(JSONObject object,WooCommerce wooCommerce){
+        wooCommerce1 = wooCommerce;
+        getAllCategories();
+        getAllTags();
+        try{
+            if(object !=null){
+                JSONObject product = object.getJSONObject("product");
+                Map productInfo = new HashMap();
+                productInfo.put("name", product.get("name"));
+                productInfo.put("manage_stock", true);
+//                productInfo.put("sku", product.get("sku"));
+                sku(product,productInfo);
+                productInfo.put("weight", product.getString("weight").trim());//价格
+                price(object,productInfo);
+                detailUrl(product,productInfo);
+                short_description(product,productInfo);
+                metaData(product,productInfo);
+                images(product,productInfo);
+                category(product,productInfo);
+                tags(product,productInfo);
+                return productInfo;
+                //productInfo.put("description", product.get("detailInfo"));
 
-    public static Map creatProduct(JSONObject object){
-        if(object !=null){
-            Map map = new HashMap();
-            JSONObject product = object.getJSONObject("product");
-            Map productInfo = new HashMap();
-            productInfo.put("name", product.get("name"));
-            productInfo.put("sku", object.get("sku"));
-            productInfo.put("regular_price", product.get("exportPriceProxy"));//价格
-
-            //productInfo.put("description", product.get("detailInfo"));
-
+            }
+        }catch (Exception e){
+            logger.error(e.getMessage());
+        }finally{
+            closeConnect();
         }
         return null;
     }
@@ -47,8 +77,9 @@ public class WooUtils {
         StringBuilder b = new StringBuilder();
         b.append("<p>");
         for(int i=1;i<=imgs.size();i++){
-            String imageName = downloadPicture(imgs.get(""+i+"")+"");
-            b.append("<img src=\""+url+imageName+"\" class=\"\">");
+            System.out.println(i);
+            String imageName = downloadPicture(imgs.get(""+i+"")+"",product.getString("sku"));
+            b.append("<img src=\""+url+"/"+imageName+"\" class=\"\">");
         }
         b.append("</p>");
         map.put("description",b.toString());
@@ -69,23 +100,24 @@ public class WooUtils {
         String onlineName = warehouse.getOnlineName();
         onlineName = onlineName.equals("0")? "缺货":onlineName;
 
-        String short_description = "<ul>\\n";
+        String short_description = "<ul>";
 
         short_description = short_description +"<li><span class=\\\"info-title\\\">重量</span>";
-        short_description = short_description +"<span class=\\\"info-title\\\">"+weight+"g</span></li>\\n";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+weight+"g</span></li>";
 
         short_description = short_description +"<li><span class=\\\"info-title\\\">库存</span>";
-        short_description = short_description +"<span class=\\\"info-title\\\">"+stockQty+"</span></li>\\n";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+stockQty+"</span></li>";
 
         short_description = short_description +"<li><span class=\\\"info-title\\\">有效期</span>";
-        short_description = short_description +"<span class=\\\"info-title\\\">"+validDate+"</span></li>\\n";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+validDate+"</span></li>";
 
         short_description = short_description +"<li><span class=\\\"info-title\\\">发货仓</span>";
-        short_description = short_description +"<span class=\\\"info-title\\\">"+onlineName+"</span></li>\\n";
+        short_description = short_description +"<span class=\\\"info-title\\\">"+onlineName+"</span></li>";
 
-        short_description =  short_description+"</ul>\\n";
+        short_description =  short_description+"</ul>";
 
         map.put("short_description",short_description);
+        map.put("stock_quantity",Integer.parseInt(stockQty));
 
     }
 
@@ -95,7 +127,8 @@ public class WooUtils {
      * @param map
      */
     public static void metaData(JSONObject product,Map map){
-        JSONArray jsonArray  = product.getJSONArray("meta_data");
+        JSONArray jsonArray  = product.getJSONArray("tags");
+
         for(int i=0;i<jsonArray.size();i++){
             JSONObject  o = jsonArray.getJSONObject(i);
             String name = o.getString("name");
@@ -109,9 +142,11 @@ public class WooUtils {
                 value.put("end_date","");
                 m.put("key","_yith_wcbm_product_meta");
                 m.put("value",value);
-                map.put("meta_data",new ArrayList<>().add(m));
+                List ls = new ArrayList<>();
+                ls.add(m);
+                map.put("meta_data",ls);
+                return;
             }
-            return;
         }
     }
     /**
@@ -119,47 +154,91 @@ public class WooUtils {
      */
     public static void images(JSONObject product,Map map){
 
-        Map imges= new HashMap();
         String s = product.getString("carouselImgs");
         if(!StringUtils.isEmpty(s)){
-            s = s.replaceAll("\\[","").replaceAll("\\]","");
+
             if(!"".equals(s)){
                 String at [] = s.split(",");
                 List ls = new ArrayList<>();
                 for(int i=0;i<at.length;i++){
-                    String imageName = downloadPicture(at[i]);
+                    String nu = at[i].replaceAll("\\[","").replaceAll("\\]","").replaceAll("\"","").replaceAll("\"\"","");
+                    String imageName = downloadPicture(nu,product.getString("sku"));
                     Map m = new HashMap();
-                    m.put("src",scr+imageName);
+                    m.put("src",scr+"/"+imageName);
                     m.put("position",i);
                     m.put("name",imageName.substring(0,imageName.lastIndexOf(".")));
                     ls.add(m);
                 }
-                imges.put("images",ls);
+                map.put("images",ls);
             }
         }
     }
     /**
-     * 产品图片
+     * 标签
      */
     public static void tags(JSONObject product,Map map){
 
         Map imges= new HashMap();
-        String s = product.getString("carouselImgs");
-        if(!StringUtils.isEmpty(s)){
-            s = s.replaceAll("\\[","").replaceAll("\\]","");
-            if(!"".equals(s)){
-                String at [] = s.split(",");
-                List ls = new ArrayList<>();
-                for(int i=0;i<at.length;i++){
-                    String imageName = downloadPicture(at[i]);
-                    Map m = new HashMap();
-                    m.put("src",scr+imageName);
-                    m.put("position",i);
-                    m.put("name",imageName.substring(0,imageName.lastIndexOf(".")));
-                    ls.add(m);
-                }
-                imges.put("images",ls);
+        JSONArray array = product.getJSONArray("tags");
+        List ls = new ArrayList();
+        for(int i=0;i<array.size();i++){
+            JSONObject o  = array.getJSONObject(i);
+            String name = o.getString("name");
+            Integer id = (Integer) tagMap.get(name);
+            Map idMap = new HashMap();
+            if(id!=null){
+                idMap.put("id",id);
+                ls.add(idMap);
+            }else{
+                Map m = new HashMap();
+                m.put("name",name);
+                Map response = wooCommerce1.create(EndpointBaseType.PRODUCTS_TAGS.getValue(),m);
+                id = (Integer)response.get("id");
+                idMap.put("id",id);
+                ls.add(idMap);
             }
+        }
+        Warehouse warehouse = JSONObject.toJavaObject(product.getJSONObject("warehouse"), Warehouse.class);
+        String name = warehouse.getOnlineName();
+        Integer id = (Integer) tagMap.get(name);
+        Map idMap = new HashMap();
+        if(id!=null){
+            idMap.put("id",id);
+            ls.add(idMap);
+        }else{
+            Map m = new HashMap();
+            m.put("name",name);
+            Map response = wooCommerce1.create(EndpointBaseType.PRODUCTS_TAGS.getValue(),m);
+            id = (Integer)response.get("id");
+            idMap.put("id",id);
+            ls.add(idMap);
+        }
+
+        map.put("tags",ls);
+    }
+
+    public static void category(JSONObject product,Map map){
+        Map imges= new HashMap();
+        JSONObject object = product.getJSONObject("category");
+        String name = object.getString("name");
+        Integer id = (Integer) catMap.get(name);
+        Map idMap = new HashMap();
+        List ls = new ArrayList();
+        if(id!=null) {
+            idMap.put("id",id);
+
+            ls.add(idMap);
+
+            map.put("categories",ls);
+        }else{
+            Map m = new HashMap();
+            m.put("name",name);
+            Map response = wooCommerce1.create(EndpointBaseType.PRODUCTS_CATEGORIES.getValue(),m);
+            id = (Integer) response.get("id");
+            idMap.put("id",id);
+            ls.add(idMap);
+            map.put("categories",ls);
+            catMap.put(name,id);
         }
     }
     /**
@@ -167,7 +246,7 @@ public class WooUtils {
      * @param urlList
      * @return
      */
-    private static String downloadPicture(String urlList) {
+    private static String downloadPicture(String urlList,String sku) {
         URL url = null;
         int imageNumber = 0;
 
@@ -180,24 +259,36 @@ public class WooUtils {
 
                 imageName = imageName+".jpg";
             }
-
-            FileOutputStream fileOutputStream = new FileOutputStream(new File("D:\\imgs\\"+imageName));
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-            byte[] buffer = new byte[1024];
-            int length;
-
-            while ((length = dataInputStream.read(buffer)) > 0) {
-                output.write(buffer, 0, length);
+            String fileUrl = "D:\\imgs\\"+sku;
+            File dir = new File(fileUrl);
+            if(!dir.exists()){
+                dir.mkdirs();//创建目录
             }
-            byte[] context=output.toByteArray();
-            fileOutputStream.write(output.toByteArray());
-            dataInputStream.close();
-            fileOutputStream.close();
+
+            fileUrl = fileUrl+"\\"+imageName;
+            File localImg = new File(fileUrl);
+            if(!localImg.exists()) {//不存在就创建一个
+                FileOutputStream fileOutputStream = new FileOutputStream(localImg);
+                ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+                byte[] buffer = new byte[1024];
+                int length;
+
+                while ((length = dataInputStream.read(buffer)) > 0) {
+                    output.write(buffer, 0, length);
+                }
+                byte[] context = output.toByteArray();
+                fileOutputStream.write(output.toByteArray());
+                dataInputStream.close();
+                fileOutputStream.close();
+            }
+            uploadImg(localImg,imageName);//上传文件
             return imageName;
         } catch (MalformedURLException e) {
+            logger.error(e.getMessage());
             e.printStackTrace();
         } catch (IOException e) {
+            logger.error(e.getMessage());
             e.printStackTrace();
         }
         return null;
@@ -241,10 +332,124 @@ public class WooUtils {
 //        downloadPicture("https://oss.bestl2.com/nzh/product/WrG6YXRM8xKsX5KK48E3yTAGzsKWahJT");
 
        // System.out.println(timeStamp2Date("1643670000",null));
-
-        System.out.println("<span class=\\\"info-title\\\">重量</span>");
+        BigDecimal b1 = new BigDecimal(Float.toString(93.8F));
+        BigDecimal b2 = new BigDecimal(Float.toString(10.2F));
+        Float add = b1.add(b2).floatValue();
+        System.out.println("add=========" + add);
     }
 
 
+    public static FTPClient connectHost(){
+        if(ftpClient !=null){
+            return ftpClient;
+        }else{
+            ftpClient = new FTPClient();
+            ftpClient.setControlEncoding("GBK");
+            String hostname = "112.126.95.64";
+            int port = 21;
+            String username = "lorence";
+            String password = "Pengyi527";
+            try {
+                ftpClient.connect(hostname, port);
+                //登录ftp
+                ftpClient.login(username, password);
+                return ftpClient;
+            } catch (IOException e) {
+                logger.error(e.getMessage());
+            }
+        }
+        return null;
+    }
 
+    public static void uploadImg(File file,String fileName){
+
+        ftpClient = connectHost();
+        if(file != null){
+            try {
+                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+                FileInputStream input = new FileInputStream(file);
+                ftpClient.storeFile(fileName, input);//文件你若是不指定就会上传到root目录下
+                input.close();
+            } catch (IOException e) {
+                logger.error(e.getMessage());
+            }
+
+        }
+    }
+    public static void closeConnect(){
+        if(ftpClient !=null){
+            try {
+                ftpClient.logout();
+                ftpClient=null;
+            } catch (IOException e) {
+                logger.error(e.getMessage());
+            }
+        }
+    }
+    public static void getAllCategories() {
+        Map<String, String> params = new HashMap<>();
+        params.put("per_page","100");
+        params.put("offset","0");
+        Object products = wooCommerce1.getAll(EndpointBaseType.PRODUCTS_CATEGORIES.getValue(), params);
+        List ls = (ArrayList)products;
+        for(int i=0;i<ls.size();i++){
+            Map m = (Map)ls.get(i);
+            String name = ""+m.get("name");
+            Integer id = (Integer)m.get("id");
+            catMap.put(name,id);
+
+        }
+        params.put("per_page","100");
+        params.put("offset","100");
+        products = wooCommerce1.getAll(EndpointBaseType.PRODUCTS_CATEGORIES.getValue(), params);
+        ls = (ArrayList)products;
+        for(int i=0;i<ls.size();i++){
+            Map m = (Map)ls.get(i);
+            String name = ""+m.get("name");
+            Integer id = (Integer)m.get("id");
+            catMap.put(name,id);
+
+        }
+    }
+    public static  void getAllTags() {
+        Map<String, String> params = new HashMap<>();
+        params.put("per_page","100");
+        params.put("offset","0");
+        Object products = wooCommerce1.getAll(EndpointBaseType.PRODUCTS_TAGS.getValue(), params);
+        List ls = (ArrayList)products;
+        for(int i=0;i<ls.size();i++){
+            Map m = (Map)ls.get(i);
+            String name = ""+m.get("name");
+            Integer id = (Integer)m.get("id");
+            tagMap.put(name,id);
+        }
+    }
+
+    public static void price(JSONObject product,Map map){
+        JSONObject o = product.getJSONObject("businessPrice");
+        String regulerprice =  o.getString("exportPrice");
+        BigDecimal b1 = new BigDecimal(regulerprice);
+        BigDecimal b2 = new BigDecimal(Float.toString(10.00F));
+        Float add = b1.add(b2).floatValue();
+        logger.debug("商品价格wei ："+add);
+        map.put("regular_price",add+"");//价格
+    }
+    public static void sku(JSONObject product,Map map){
+        String sku = product.get("sku")+"";
+        Warehouse warehouse = JSONObject.toJavaObject(product.getJSONObject("warehouse"), Warehouse.class);
+        String onlineName = warehouse.getOnlineName();
+        if(onlineName.equals("")){
+
+        }else if(onlineName.equals("新西兰仓")) {
+            sku = sku+"-1";
+        }else if(onlineName.equals("澳洲仓")) {
+            sku = sku+"-2";
+        }else if(onlineName.equals("环球精品仓")) {
+            sku = sku+"-3";
+        }else if(onlineName.equals("香港仓")) {
+            sku = sku+"-4";
+        }
+
+        map.put("sku", sku);
+    }
 }

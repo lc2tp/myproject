@@ -1,6 +1,7 @@
 package com.example.demo;
 
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.icoderman.woocommerce.ApiVersionType;
@@ -50,10 +51,26 @@ public class WooCommerceClientTest {
         params.put("per_page","100");
         params.put("offset","0");
         Object products = wooCommerce.getAll(EndpointBaseType.PRODUCTS.getValue(), params);
-
+        String json = JSON.toJSONString(products);
         Assert.assertNotNull(products);
     }
+    @Ignore
+    @Test
+    public void apiGetAllCategories() {
+        Map<String, String> params = new HashMap<>();
+        params.put("per_page","100");
+        params.put("offset","0");
+        Object products = wooCommerce.getAll(EndpointBaseType.PRODUCTS_CATEGORIES.getValue(), params);
+        List ls = (ArrayList)products;
+        for(int i=0;i<ls.size();i++){
+            Map m = (Map)ls.get(i);
+            String name = ""+m.get("name");
+            Integer id = (Integer)m.get("id");
 
+        }
+        String json = JSON.toJSONString(products);
+        Assert.assertNotNull(products);
+    }
     @Ignore
     @Test
     public void apiGetProductTest() {
