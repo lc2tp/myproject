@@ -27,13 +27,20 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WooUtils {
-    static String scr = "http://www.xiaohaid.com/wordpress/wp-content/uploads/2020/04";
-    static String url = "http://www.xiaohaid.com/wordpress/wp-content/uploads/2020/04";
+    static String scr = "http://www.xiaohaid.com/wp-content/uploads/2020/05";
+    static String url = "http://www.xiaohaid.com/wp-content/uploads/2020/05";
     static FTPClient ftpClient;
     static Map catMap = new HashMap();
     static Map tagMap = new HashMap();
     static WooCommerce wooCommerce1;
     private static final Logger logger = LogManager.getLogger();
+
+    /**
+     * 新增产品
+     * @param object
+     * @param wooCommerce
+     * @return
+     */
     public static Map creatProduct(JSONObject object,WooCommerce wooCommerce){
         wooCommerce1 = wooCommerce;
         getAllCategories();
@@ -47,13 +54,51 @@ public class WooUtils {
 //                productInfo.put("sku", product.get("sku"));
                 sku(product,productInfo);
                 productInfo.put("weight", product.getString("weight").trim());//价格
-                price(object,productInfo);
+                price(object,productInfo,product.get("name")+"");
                 detailUrl(product,productInfo);
                 short_description(product,productInfo);
                 metaData(product,productInfo);
                 images(product,productInfo);
                 category(product,productInfo);
-                tags(product,productInfo);
+                tags(product,productInfo,product.get("name")+"");
+                return productInfo;
+                //productInfo.put("description", product.get("detailInfo"));
+
+            }
+        }catch (Exception e){
+            logger.error(e.getMessage());
+        }finally{
+            closeConnect();
+        }
+        return null;
+    }
+
+    /**
+     * 修改产品
+     * @param object
+     * @param wooCommerce
+     * @return
+     */
+    public static Map updateProduct(JSONObject object,WooCommerce wooCommerce){
+        wooCommerce1 = wooCommerce;
+        getAllCategories();
+        getAllTags();
+        try{
+            if(object !=null){
+                JSONObject product = object.getJSONObject("product");
+                Map productInfo = new HashMap();
+                productInfo.put("name", product.get("name"));
+                productInfo.put("manage_stock", true);
+//                productInfo.put("sku", product.get("sku"));
+                //sku(product,productInfo);
+                productInfo.put("weight", product.getString("weight").trim());//价格
+                price(object,productInfo,product.get("name")+"");
+                //detailUrl(product,productInfo);
+                short_description(product,productInfo);
+                metaData(product,productInfo);
+                //images(product,productInfo);
+                //category(product,productInfo);
+                tags(product,productInfo,product.get("name")+"");
                 return productInfo;
                 //productInfo.put("description", product.get("detailInfo"));
 
@@ -117,6 +162,12 @@ public class WooUtils {
         short_description =  short_description+"</ul>";
 
         map.put("short_description",short_description);
+//        Integer stockQty  = Integer.parseInt(stockQty);
+        logger.debug("库存数量为"+stockQty);
+        if(stockQty.equals("0")||stockQty.equals("")||stockQty==null){
+            map.put("manage_stock", false);
+            map.put("in_stock",false);
+        }
         map.put("stock_quantity",Integer.parseInt(stockQty));
 
     }
@@ -176,7 +227,7 @@ public class WooUtils {
     /**
      * 标签
      */
-    public static void tags(JSONObject product,Map map){
+    public static void tags(JSONObject product,Map map,String pName){
 
         Map imges= new HashMap();
         JSONArray array = product.getJSONArray("tags");
@@ -199,20 +250,35 @@ public class WooUtils {
             }
         }
         Warehouse warehouse = JSONObject.toJavaObject(product.getJSONObject("warehouse"), Warehouse.class);
-        String name = warehouse.getOnlineName();
-        Integer id = (Integer) tagMap.get(name);
+        String onlineName = warehouse.getOnlineName();
         Map idMap = new HashMap();
+        Integer id = (Integer) tagMap.get(onlineName);
+
         if(id!=null){
             idMap.put("id",id);
             ls.add(idMap);
         }else{
             Map m = new HashMap();
-            m.put("name",name);
+            m.put("name",onlineName);
             Map response = wooCommerce1.create(EndpointBaseType.PRODUCTS_TAGS.getValue(),m);
             id = (Integer)response.get("id");
             idMap.put("id",id);
             ls.add(idMap);
         }
+//        if(pName.indexOf(""))
+//         id = (Integer) tagMap.get(pName);
+//
+//        if(id!=null){
+//            idMap.put("id",id);
+//            ls.add(idMap);
+//        }else{
+//            Map m = new HashMap();
+//            m.put("name",onlineName);
+//            Map response = wooCommerce1.create(EndpointBaseType.PRODUCTS_TAGS.getValue(),m);
+//            id = (Integer)response.get("id");
+//            idMap.put("id",id);
+//            ls.add(idMap);
+//        }
 
         map.put("tags",ls);
     }
@@ -259,7 +325,7 @@ public class WooUtils {
 
                 imageName = imageName+".jpg";
             }
-            String fileUrl = "D:\\imgs\\"+sku;
+            String fileUrl = "D:\\imgs\\"+sku.replaceAll("\\*","-");
             File dir = new File(fileUrl);
             if(!dir.exists()){
                 dir.mkdirs();//创建目录
@@ -326,19 +392,31 @@ public class WooUtils {
     }
 
     public static  void  main(String[] args) throws  Exception{
-//        String str="<p><img src=\"https://oss.bestl2.com/nzh/product/ZgkrDS0FCaYGO9lQ4DRqX-qW.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/CDJX_BcewnsFp4PcnxFl-NDc.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/tkN3P93N18Q4E10ZEF_hcw_o.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/bW1XMSi1eDoLQk1rZzbP8JrB.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/suQfaXXm5xV0Zb7eyvlfW59c.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/q4X8g15xCmdImV53LMTTcM6u.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/z-6DFrfG3k2HfdK2RluNXudx.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/uJdGYvd0Q6Nc9ABBtU-HqCwO.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/oKzj1g63dhY8KlwdWyQCfRky.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/HvOx6ohYU_kBFyEDfv2OgUww.jpg\"><img src=\"https://oss.bestl2.com/nzh/product/LPIH07wfHTzqeA9IeF7t5yKc.jpg\"></p>";
-//        Map<String,String> map=    getImgStr(URLDecoder.decode(str,"UTF-8"));
-//        System.out.println(map.values());
-//        downloadPicture("https://oss.bestl2.com/nzh/product/WrG6YXRM8xKsX5KK48E3yTAGzsKWahJT");
-
-       // System.out.println(timeStamp2Date("1643670000",null));
-        BigDecimal b1 = new BigDecimal(Float.toString(93.8F));
-        BigDecimal b2 = new BigDecimal(Float.toString(10.2F));
+        String  name = "Bioshine 倍恩喜 婴幼儿配方羊奶粉 1段 800g *6【6罐直邮包邮，必须上传身份证照片】程光承运";
+        BigDecimal b1 = new BigDecimal("502.23");
+        BigDecimal b2 = new BigDecimal(10);
+        int bc =10;
+        int index = name.indexOf("*");
+        if(index>-1){
+            String num= name.substring(index+1,index+2);
+            if(isInteger(num)){
+                bc = bc*Integer.parseInt(num);
+                System.out.println(bc);
+            }
+        }else if(name.indexOf("3罐")>-1||name.indexOf("3代")>-1){
+            bc = bc*3;
+        }else  if(name.indexOf("6罐")>-1||name.indexOf("6代")>-1){
+            bc = bc*6;
+        }
         Float add = b1.add(b2).floatValue();
+        System.out.println(b1.compareTo(new BigDecimal(600))>-1);
         System.out.println("add=========" + add);
     }
 
-
+    public static boolean isInteger(String str) {
+        Pattern pattern = Pattern.compile("^[-\\+]?[\\d]*$");
+        return pattern.matcher(str).matches();
+    }
     public static FTPClient connectHost(){
         if(ftpClient !=null){
             return ftpClient;
@@ -425,17 +503,43 @@ public class WooUtils {
         }
     }
 
-    public static void price(JSONObject product,Map map){
+    public static void price(JSONObject product,Map map,String name){
+        logger.debug(name);
         JSONObject o = product.getJSONObject("businessPrice");
         String regulerprice =  o.getString("exportPrice");
         BigDecimal b1 = new BigDecimal(regulerprice);
-        BigDecimal b2 = new BigDecimal(Float.toString(10.00F));
+
+        int bc =10;
+        int index = name.indexOf("*");
+        if(index>-1){
+            String num= name.substring(index+1,index+2);
+            if(isInteger(num)){
+                bc = bc*Integer.parseInt(num);
+                logger.debug(bc);
+            }
+        }else if(name.indexOf("3罐")>-1||name.indexOf("3袋")>-1){
+            bc = bc*3;
+            logger.debug(bc);
+        }else  if(name.indexOf("6罐")>-1||name.indexOf("6袋")>-1){
+            bc = bc*6;
+            logger.debug(bc);
+        }else if(name.indexOf("美国直邮")>-1){//包包
+            if(b1.compareTo(new BigDecimal(500))>-1){//美国商品大于500加100元
+                bc = bc+100;
+            }else{//否则只加50元
+                bc = bc+50;
+            }
+        }
+        BigDecimal b2 = new BigDecimal(bc);
+
         Float add = b1.add(b2).floatValue();
         logger.debug("商品价格wei ："+add);
         map.put("regular_price",add+"");//价格
     }
     public static void sku(JSONObject product,Map map){
         String sku = product.get("sku")+"";
+        sku = sku.replaceAll("\\*","-");
+        logger.debug("原始sku为"+sku);
         Warehouse warehouse = JSONObject.toJavaObject(product.getJSONObject("warehouse"), Warehouse.class);
         String onlineName = warehouse.getOnlineName();
         if(onlineName.equals("")){
@@ -452,4 +556,6 @@ public class WooUtils {
 
         map.put("sku", sku);
     }
+
+
 }

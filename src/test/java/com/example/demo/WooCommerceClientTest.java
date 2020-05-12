@@ -23,7 +23,7 @@ public class WooCommerceClientTest {
 
     private static final String CONSUMER_KEY = "ck_1e85d27ddf7bc6c4b65e7e9ec66ce4e8b24d3e1b";
     private static final String CONSUMER_SECRET = "cs_3fa6d4b991df7717124cab92628b377d1184ede0";
-    private static final String WC_URL = "http://112.126.95.64/wordpress/index.php";
+    private static final String WC_URL = "http://www.xiaohaid.com/index.php";
 
     private WooCommerce wooCommerce;
 
@@ -48,9 +48,17 @@ public class WooCommerceClientTest {
     @Test
     public void apiGetAllProductsTest() {
         Map<String, String> params = new HashMap<>();
-        params.put("per_page","100");
+        params.put("per_page","1");
         params.put("offset","0");
+        params.put("sku","0735850381015 －0735850381008-1");
         Object products = wooCommerce.getAll(EndpointBaseType.PRODUCTS.getValue(), params);
+        List ls = (ArrayList)products;
+        for(int i=0;i<ls.size();i++){
+            Map m = (Map)ls.get(i);
+            String name = ""+m.get("name");
+            Integer id = (Integer)m.get("id");
+
+        }
         String json = JSON.toJSONString(products);
         Assert.assertNotNull(products);
     }
@@ -60,6 +68,7 @@ public class WooCommerceClientTest {
         Map<String, String> params = new HashMap<>();
         params.put("per_page","100");
         params.put("offset","0");
+//        params.put("sku","708177119845-1");
         Object products = wooCommerce.getAll(EndpointBaseType.PRODUCTS_CATEGORIES.getValue(), params);
         List ls = (ArrayList)products;
         for(int i=0;i<ls.size();i++){
